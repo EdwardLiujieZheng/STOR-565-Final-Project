@@ -20,7 +20,7 @@ def read_data(PATH):
         encoding,label = tourney.split(";")
         encoding = [float(e) for e in encoding.split(",")]
         encodings.append(encoding)
-        labels.append(label)
+        labels.append(int(label))
     return encodings, labels
 
 
