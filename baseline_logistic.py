@@ -1,13 +1,16 @@
-import matplotlib.pyplot as plt
+import os
 import numpy as np
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis, LinearDiscriminantAnalysis
+import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import classification_report
+from sklearn.linear_model import LogisticRegression
 
+os.system('cls' if os.name == 'nt' else 'clear')
 
-DATA = "training"
-TEST = "test"
+def euclidean_distance(vec1, vec2):
+    return [(e1-e2)**2 for e1,e2 in zip(vec1, vec2)]
 
 def read_data(PATH):
     with open(PATH, "r", encoding="utf-8") as f:
@@ -17,10 +20,15 @@ def read_data(PATH):
     labels = []
     tourneys = [tourney.strip('\n') for tourney in tourneys]
     for tourney in tourneys:
-        encoding,label = tourney.split(";")
-        encoding = [float(e) for e in encoding.split(",")]
+        encoding1, encoding2, label = tourney.split(";")
+        encoding1 = [float(e) for e in encoding1.split(",")]
+        encoding2 = [float(e) for e in encoding2.split(",")]
+
+        encoding = encoding1 + encoding2 # NOTE contatenation
+        #encoding = euclidean_distance(encoding1, encoding2)
         encodings.append(encoding)
         labels.append(int(label))
+
     return encodings, labels
 
 
@@ -28,45 +36,47 @@ def assemble_matrices(encodings, labels):
     return np.array(encodings), np.array(labels)
 
 
-def logistic_regression(training_datapath, test_datapath):
-    train_encodings, train_labels = read_data(training_datapath)
-    X, Y = assemble_matrices(train_encodings, train_labels)
-
-    test_encodings, test_labels = read_data(test_datapath)
-    testX, testY = assemble_matrices(test_encodings, test_labels)
+def logistic_regression(X_train, y_train, X_test, y_test):
+    X, Y = assemble_matrices(X_train, y_train)
+    testX, testY = assemble_matrices(X_test, y_test)
 
     model = LogisticRegression(solver='liblinear', random_state=0)
     model.fit(X, Y)
 
     prediction = model.predict(testX)
-    print(prediction)
-    score = model.score(testX, testY)
-    print(score)
+    return prediction
+
+def naive_bayes(X_train, y_train, X_test, y_test):
+    X, Y = assemble_matrices(X_train, y_train)
+    testX, testY = assemble_matrices(X_test, y_test)
+
+    scaler = MinMaxScaler()
+    X = scaler.fit_transform(X)
+    testX = scaler.fit_transform(testX)
+
+    model = MultinomialNB()
+    model.fit(X, Y)
+
+    prediction = model.predict(testX)
+    return prediction
+
 
 if __name__ == "__main__":
-    logistic_regression(DATA, TEST)
 
-    # Split the dataset into training and testing sets
-    trainX, trainY = read_data(DATA)
-    X_train, y_train = assemble_matrices(trainX, trainY)
-    testX, testY = read_data(TEST)
-    X_test, y_test = assemble_matrices(testX, testY)
+    TRAIN = "pooled_train"
+    TEST = "pooled_test"
+    X_train, y_train = read_data(TRAIN)
+    X_test, y_test = read_data(TEST)
 
-    # Create and train a QDA classifier
-    qda = QuadraticDiscriminantAnalysis()
-    qda.fit(X_train, y_train)
+    lr_predictions = logistic_regression(X_train, y_train, X_test, y_test)
+    print(lr_predictions)
+    lr_report = classification_report(y_test, lr_predictions)
+    print(accuracy_score(y_test, lr_predictions))
+    print(lr_report)
 
-    # Create and train an LDA classifier
-    lda = LinearDiscriminantAnalysis()
-    lda.fit(X_train, y_train)
-
-    # Use the trained classifiers to make predictions on the test data
-    qda_pred = qda.predict(X_test)
-    lda_pred = lda.predict(X_test)
-
-    # Calculate the accuracy of the classifiers
-    qda_acc = accuracy_score(y_test, qda_pred)
-    lda_acc = accuracy_score(y_test, lda_pred)
-
-    print("QDA Accuracy:", qda_acc)
-    print("LDA Accuracy:", lda_acc)
+    #Naive-Bayes
+    nb_predictions = naive_bayes(X_train, y_train, X_test, y_test)
+    print(nb_predictions)
+    nb_report = classification_report(y_test, nb_predictions)
+    print(accuracy_score(y_test, nb_predictions))
+    print(nb_report)

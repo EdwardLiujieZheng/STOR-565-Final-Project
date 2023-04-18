@@ -5,7 +5,7 @@ Each tournament is processed in isolation, i.e. has no knowledge of prior or fut
 import random, os, sys
 
 def add_vectors(vec1: list[float], vec2: list[float]) -> list[float]:
-    """Element-wise addition for two vectors."""
+    """Element-wise addition for two vectors, non-mutating."""
     assert len(vec1) == len(vec2)
     return [e1+e2 for e1,e2 in zip(vec1, vec2)]
 
@@ -20,8 +20,7 @@ def get_mapping_colnameTOidx(data: str | list[str]):
     """
     if isinstance(data, str):
         with open(data, "r", encoding="utf-8") as f:
-            info_line = f.readline().split(",")
-            info_line[-1] = info_line[-1].strip("\n") # Strip \n at end of each line
+            info_line = f.readline().strip("\n").split(",")
     elif isinstance(data, list):
         info_line = data
     
@@ -51,9 +50,8 @@ def create_tournaments_dict(data_filepath: str):
     """
 
     mapping_dict = get_mapping_colnameTOidx(data_filepath)
-    winner_name_idx = mapping_dict["winner"]
-    player1_idx = mapping_dict["player_1"]
-    player2_idx = mapping_dict["player_2"]
+    winner_idx = mapping_dict["winner_name"]
+    loser_idx = mapping_dict["loser_name"]
     round_idx = mapping_dict["round"]
 
     tourney_dict = {}
@@ -61,20 +59,15 @@ def create_tournaments_dict(data_filepath: str):
         for line in f.readlines():
             if line == "":
                 continue
-            match_info = line.split(",")
-            tourney_id = match_info[mapping_dict["tourney_id"]]
-            match_info[-1] = match_info[-1].strip("\n") # Strip \n at end of each line
+            
+            match_info = line.strip("\n").split(",")
+            tourney_id = match_info[0] # First item is always tourney_id
 
             if tourney_id == "tourney_id": # NOTE skip first line
                 continue
 
-            winner = match_info[winner_name_idx]
-            player1 = match_info[player1_idx]
-            player2 = match_info[player2_idx]
-            if winner == player1:
-                loser = player2
-            else:
-                loser = player2
+            winner = match_info[winner_idx]
+            loser = match_info[loser_idx]
 
             processed_match = (match_info, winner, loser, match_info[round_idx])
             
@@ -91,8 +84,12 @@ def encode_tournament_vectors(tourneys, mapping_dict, write_filepath=None):
         Writes calculated vectors to file
         Encoded vector is a vector of floats, result is either 0 or 1. 0 If first person wins. 
     """
-    match_encodings = []
-    for tourney in tourneys.values():
+    tournament_encodings = []
+    for tourney_id in tourneys:
+        tourney = tourneys[tourney_id] # list[(matches, winner_name, loser_name, round)]
+        if len(tourney) == 1: # Only has final 
+            continue
+
         finalist_winner = None
         finalist_loser = None
         finalist_winner_encodings = []
@@ -105,6 +102,7 @@ def encode_tournament_vectors(tourneys, mapping_dict, write_filepath=None):
                 finalist_winner = winner_name
                 finalist_loser = loser_name
                 has_final = True
+                break
         if not has_final: # NOTE ignore all tournaments without a final match
             continue
     
@@ -112,12 +110,8 @@ def encode_tournament_vectors(tourneys, mapping_dict, write_filepath=None):
         for match in tourney:
             match_info, winner_name, loser_name, round = match
 
-            if match_info[mapping_dict["winner"]] == match_info[mapping_dict["player_1"]]:
-                winner_num = "player_1"
-                loser_num = "player_2"
-            else:
-                winner_num = "player_2"
-                loser_num = "player_1"
+            if round == "F": # Ignore final match
+                continue
 
             if winner_name in (finalist_winner, finalist_loser):
                 # Set all NA to 0, change str to float
@@ -133,35 +127,45 @@ def encode_tournament_vectors(tourneys, mapping_dict, write_filepath=None):
                 match_info = temp
 
                 # NOTE Extract match features
-                ht_diff = match_info[mapping_dict[f"{winner_num}_ht"]] - match_info[mapping_dict[f"{loser_num}_ht"]]
-                age_diff = match_info[mapping_dict[f"{winner_num}_age"]] - match_info[mapping_dict[f"{loser_num}_age"]]
-                rank_points_diff = match_info[mapping_dict[f"{winner_num}_rank_points"]] - match_info[mapping_dict[f"{loser_num}_rank_points"]]
-                h2h_diff = match_info[mapping_dict[f"{winner_num}_h2h"]] - match_info[mapping_dict[f"{loser_num}_h2h"]]
-                win_pct_diff = match_info[mapping_dict[f"{winner_num}_win_pct"]] - match_info[mapping_dict[f"{loser_num}_win_pct"]]
-                surface_win_pct_diff = match_info[mapping_dict[f"{winner_num}_surface_win_pct"]] - match_info[mapping_dict[f"{loser_num}_surface_win_pct"]]
-                level_win_pct_diff = match_info[mapping_dict[f"{winner_num}_level_win_pct"]] - match_info[mapping_dict[f"{loser_num}_level_win_pct"]]
+                ht_diff = match_info[mapping_dict["winner_ht"]] - match_info[mapping_dict["loser_ht"]]
+                age_diff = match_info[mapping_dict["winner_age"]] - match_info[mapping_dict["loser_age"]]
+                ace_diff = match_info[mapping_dict["w_ace"]] - match_info[mapping_dict["l_ace"]]
+                df_diff = match_info[mapping_dict["w_df"]] - match_info[mapping_dict["l_df"]]
+                svpt_diff = match_info[mapping_dict["w_svpt"]] - match_info[mapping_dict["l_svpt"]]
+                firstIn_diff = match_info[mapping_dict["w_1stIn"]] - match_info[mapping_dict["l_1stIn"]]
+                firstWon_diff = match_info[mapping_dict["w_1stWon"]] - match_info[mapping_dict["l_1stWon"]]
+                secondWon_diff = match_info[mapping_dict["w_2ndWon"]] - match_info[mapping_dict["l_2ndWon"]]
+                svgms_diff = match_info[mapping_dict["w_SvGms"]] - match_info[mapping_dict["l_SvGms"]]
+                bpSaved_diff = match_info[mapping_dict["w_bpSaved"]] - match_info[mapping_dict["l_bpSaved"]]
+                bpFaced_diff = match_info[mapping_dict["w_bpFaced"]] - match_info[mapping_dict["l_bpFaced"]]
+                rank_points_diff = match_info[mapping_dict["winner_rank_points"]] - match_info[mapping_dict["loser_rank_points"]]
 
-                match_encoding = [ht_diff, age_diff, rank_points_diff, h2h_diff, win_pct_diff, surface_win_pct_diff, level_win_pct_diff]
+                match_encoding = [ht_diff, age_diff, ace_diff, df_diff, svpt_diff, firstIn_diff, firstWon_diff, secondWon_diff, svgms_diff, bpSaved_diff, bpFaced_diff, rank_points_diff]
+
+                if finalist_winner == winner_name:
+                    finalist_winner_encodings.append(",".join([str(ele) for ele in match_encoding]))
+                elif finalist_loser == winner_name:
+                    finalist_loser_encodings.append(",".join([str(ele) for ele in match_encoding]))
+                    
             else:
                 continue # Ignore all matches that don't involve tournament finalists
-            
-            if finalist_winner == winner_name:
-                finalist_winner_encodings.append(",".join([str(ele) for ele in match_encoding]))
-            elif finalist_loser == winner_name:
-                finalist_loser_encodings.append(",".join([str(ele) for ele in match_encoding]))
 
         # Concatenating encodings into tournament encoding, assign binary label.
         label = random_label() # Decides order or contatenation
+        assert len(finalist_winner_encodings) != 0
+        assert len(finalist_loser_encodings) != 0
+        
+        if len(finalist_loser_encodings) != len(finalist_winner_encodings): # Missing matches
+            continue
+
         if label == 0:
-            tournament_vector = ";".join(finalist_winner_encodings) + "~" + ";".join(finalist_loser_encodings) + f"~{label}"
-            assert len(finalist_winner_encodings) != 0
+            tournament_vector = ";".join(finalist_winner_encodings) + "~" + ";".join(finalist_loser_encodings) + f"~{label}"  
         else:
-            tournament_vector = ";".join(finalist_loser_encodings) + "~" + ";".join(finalist_winner_encodings) + f"~{label}"
-            assert len(finalist_loser_encodings) != 0
-        match_encodings.append(tournament_vector)
+            tournament_vector = " ;".join(finalist_loser_encodings) + "~" + ";".join(finalist_winner_encodings) + f"~{label}"    
+        tournament_encodings.append(tournament_vector)
 
     with open(write_filepath, "w", encoding="utf-8") as f: 
-        for line in match_encodings:
+        for line in tournament_encodings:
             f.write(line+"\n")
     return
 
@@ -171,11 +175,10 @@ def addition_pooling_tournament_vectors(data_filepath, save_filepath):
 
     encoded_tournaments = []
     with open(data_filepath, "r", encoding="utf-8") as f:
-        player1_pooled = None
-        player2_pooled = None
         for line in f.readlines():
-
-            if line == "\n":
+            player1_pooled = None
+            player2_pooled = None
+            if line == "":
                 continue
 
             player1_matches, player2_matches, result = line.split("~")
@@ -183,7 +186,6 @@ def addition_pooling_tournament_vectors(data_filepath, save_filepath):
             player2_matches_sep = player2_matches.split(";")
 
             # Pool player1
-            print(player1_matches_sep)
             for match in player1_matches_sep:
                 match_features = [float(ele) for ele in match.split(",")]
                 if player1_pooled == None:
@@ -199,19 +201,44 @@ def addition_pooling_tournament_vectors(data_filepath, save_filepath):
                 else:
                     player2_pooled = add_vectors(player2_pooled, match_features)
             
-        player1_pooled = ",".join([str(ele) for ele in player1_pooled])
-        player2_pooled = ",".join([str(ele) for ele in player2_pooled])
-        tournament = player1_pooled + ";" + player2_pooled + ";" + result
-        encoded_tournaments.append(tournament)
+            player1_pooled = ",".join([str(ele) for ele in player1_pooled])
+            player2_pooled = ",".join([str(ele) for ele in player2_pooled])
+
+            tournament = player1_pooled + ";" + player2_pooled + ";" + result
+            encoded_tournaments.append(tournament)
                 
     with open(save_filepath, "w", encoding="utf-8") as f:
         for line in encoded_tournaments:
-            f.write(line+"\n")
+            f.write(line)
+
+
+def train_test_split(in_filepath, out_train, out_test, split_ratio=0.8):
+    with open(in_filepath, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    split_idx = round(len(lines)*split_ratio)
+    train = lines[:split_idx]
+    test = lines[split_idx:]
+    with open(out_train, "w", encoding="utf-8") as f:
+        f.writelines(train)
+    with open(out_test, "w", encoding="utf-8") as f:
+        f.writelines(test)
 
 
 if __name__ == "__main__":
-    FILEPATH = "wta_modified_dataset.csv"
-
+    
+    #FILEPATH = "wta_modified_dataset.csv"
+    FILEPATH = "originalData"
     tourney_dict, new_mapping_dict = create_tournaments_dict(FILEPATH)
-    encode_tournament_vectors(tourney_dict, new_mapping_dict, 'tournament_vectors')
+
+    # For each tournament, filter out irrelevant matches, extract and encode interested matches
+    encode_tournament_vectors(tourney_dict, new_mapping_dict, 'tournament_vectors') 
+
+    # Pool together data from each tournament into "player1_vector;player2_vector;label"
     addition_pooling_tournament_vectors("tournament_vectors", "pooled_tournament_vectors")
+
+    # Tran-test split
+    DATA = "pooled_tournament_vectors"
+    TRAIN = "pooled_train"
+    TEST = "pooled_test"
+    TRAIN_TEST_SPLIT = 0.8
+    train_test_split(DATA, TRAIN, TEST, TRAIN_TEST_SPLIT)
