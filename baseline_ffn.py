@@ -97,10 +97,14 @@ def run_model(X_train, y_train, X_test, y_test):
     print("")
 
 
+def run_ffn(TRAIN, TEST):
+    X_train, y_train = read_data(TRAIN)
+    X_test, y_test = read_data(TEST)
+    run_model(X_train, y_train, X_test, y_test)
+
+
 if __name__ == "__main__":
     TRAIN = "modified_train"
     TEST = "modified_test"
-    X_train, y_train = read_data(TRAIN)
-    X_test, y_test = read_data(TEST)
 
-    run_model(X_train, y_train, X_test, y_test)
+    run_ffn(TRAIN, TEST)

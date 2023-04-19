@@ -80,11 +80,7 @@ def naive_bayes(X_train, y_train, X_test, y_test):
     prediction = model.predict(X_test)
     return prediction
 
-
-if __name__ == "__main__":
-
-    TRAIN = "modified_train"
-    TEST = "modified_test"
+def run_stats_models(TRAIN, TEST):
     X_train, y_train = read_data(TRAIN)
     X_test, y_test = read_data(TEST)
 
@@ -116,3 +112,10 @@ if __name__ == "__main__":
     print(accuracy_score(y_test, qda_predictions))
     print(qda_report)
 
+
+if __name__ == "__main__":
+    TRAIN = "modified_train"
+    TEST = "modified_test"
+
+    run_stats_models(TRAIN, TEST)
+    

@@ -73,15 +73,19 @@ def train_test_split(in_filepath, out_train, out_test, split_ratio=0.8):
         f.writelines(test)
 
 
+def run_preprocessing(DATA_FILEPATH, OUTPUT_FILEPATH, OUTPUT_TRAIN, OUTPUT_TEST, RATIO=0.8):
+    process_dataset(DATA_FILEPATH, OUTPUT_FILEPATH)
+    train_test_split(OUTPUT_FILEPATH, OUTPUT_TRAIN, OUTPUT_TEST, RATIO)
+
+
 if __name__ == "__main__":
     
     FILEPATH = "wta_atp_modified_data.csv"
     OUTPUT = "modified_dataset"
 
-    process_dataset(FILEPATH, OUTPUT) 
-
     # Train-test split
     TRAIN = "modified_train"
     TEST = "modified_test"
     TRAIN_TEST_SPLIT_RATIO = 0.8
-    train_test_split(OUTPUT, TRAIN, TEST, TRAIN_TEST_SPLIT_RATIO)
+    
+    run_preprocessing(FILEPATH, OUTPUT, TRAIN, TEST, TRAIN_TEST_SPLIT_RATIO)
