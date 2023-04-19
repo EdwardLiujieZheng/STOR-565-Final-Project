@@ -9,26 +9,43 @@ from sklearn.metrics import classification_report
 
 os.system('cls' if os.name == 'nt' else 'clear')
 
-def euclidean_distance(vec1, vec2):
-    return [(e1-e2)**2 for e1,e2 in zip(vec1, vec2)]
+def extract_player_features(encodings: list[float]):
+    player1 = []
+    player2 = []
+    for i in range(1, 31):
+        if i%2 == 1:
+            player1.append(encodings[i])
+        else:
+            player2.append(encodings[i])
+    return player1, player2
 
-def read_data(PATH):
+
+def difference_squared(encodings):
+    player1, player2 = extract_player_features(encodings)
+    return [(e1-e2)^2 for e1,e2 in zip(player1, player2)]
+
+
+def difference(encodings):
+    player1, player2 = extract_player_features(encodings)
+    return [(e1-e2) for e1,e2 in zip(player1, player2)]
+
+
+def read_data(PATH, encoding_func=None):
+    """Reads column for each player, substract player encodings to get match encoding."""
     with open(PATH, "r", encoding="utf-8") as f:
-        tourneys = f.readlines()
+        matches = f.readlines()
     
     encodings = []
     labels = []
-    tourneys = [tourney.strip('\n') for tourney in tourneys]
-    for tourney in tourneys:
-        encoding1, encoding2, label = tourney.split(";")
-        encoding1 = [float(e) for e in encoding1.split(",")]
-        encoding2 = [float(e) for e in encoding2.split(",")]
-
-        encoding = encoding1 + encoding2 # NOTE contatenation
-        #encoding = euclidean_distance(encoding1, encoding2)
+    matches = [match.strip('\n') for match in matches]
+    for match in matches:
+        encoding, label = match.split(";")
+        encoding = [float(e) for e in encoding.split(",")]
+        
+        if encoding_func:
+            encoding = encoding_func(encoding)
         encodings.append(encoding)
         labels.append(int(label))
-
     return np.array(encodings), np.array(labels)
 
 
@@ -38,8 +55,9 @@ def run_model(X_train, y_train, X_test, y_test):
     # Model Architecture 
     model = Sequential(name="SimpleFFN") # Model
     model.add(Input(shape=(input_length,), name='Input-Layer'))
-    model.add(Dense(30, activation='relu', name='Hidden-Layer1')) 
-    model.add(Dense(30, activation='softplus', name='Hidden-Layer2')) 
+    model.add(Dense(60, activation='relu', name='Hidden-Layer1')) 
+    model.add(Dense(60, activation='softplus', name='Hidden-Layer2')) 
+    model.add(Dense(60, activation='softplus', name='Hidden-Layer3')) 
     model.add(Dense(1, activation='sigmoid', name='Output-Layer')) 
 
     # Compile model
@@ -54,8 +72,8 @@ def run_model(X_train, y_train, X_test, y_test):
     # Fit model
     model.fit(X_train, 
             y_train, 
-            batch_size=5, 
-            epochs=10, 
+            batch_size=10, 
+            epochs=12, 
             verbose='auto', 
             callbacks=None, 
             validation_split=0.2,  
@@ -80,8 +98,8 @@ def run_model(X_train, y_train, X_test, y_test):
 
 
 if __name__ == "__main__":
-    TRAIN = "pooled_train"
-    TEST = "pooled_test"
+    TRAIN = "modified_train"
+    TEST = "modified_test"
     X_train, y_train = read_data(TRAIN)
     X_test, y_test = read_data(TEST)
 
